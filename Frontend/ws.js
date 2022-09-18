@@ -137,7 +137,7 @@ function getGroupMessages(groupID) {
 function connectToServer() {
     closeConnection();
 
-    _ws = new WebSocket("ws://mcserver.qin.cab:33667");
+    _ws = new WebSocket("ws://127.0.0.1:8484");
 
     _ws.addEventListener("error", () => {
         if (!_connected) {

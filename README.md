@@ -7,5 +7,5 @@
  - 下载 Simple Mirai Bot 将其配置好且运行一次
  - [下载此扩展](https://github.com/XIAYM-gh/SMB-Server/releases) 并移动进 plugins 文件夹内
  - 重启 Simple Mirai Bot，加载扩展
- - 使用运行 SMB 的设备打开 [此页面](https://xiaym-gh.github.io/SMB-Server/Frontend/sw.html)
+ - 使用运行 SMB 的设备打开 [此页面](https://xiaym-gh.github.io/SMB-Server/Frontend/ws.html)
  - Enjoy!
