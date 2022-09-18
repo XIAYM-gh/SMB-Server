@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="SMB Plugin Dev">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../simple-mirai-bot/out/artifacts/Simple_Mirai_Bot/mirai-core-all-2.12.2-all.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../simple-mirai-bot/out/artifacts/Simple_Mirai_Bot/Simple-Mirai-Bot.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -1,0 +1,163 @@
+/* Menu Settings */
+.mdui-collapse-item-body .mdui-list-item {
+    padding-left: 20px !important;
+}
+
+@media screen and (min-width: 1025px) {
+    .mdui-drawer {
+        z-index: unset !important;
+        padding-bottom: 65px;
+    }
+}
+
+/* module defaults */
+.module {
+    display: none;
+    user-select: none;
+    animation: fadeIn .3s ease 0s both;
+}
+
+.module.shown {
+    display: block;
+}
+
+/* module #connecting */
+.module#connecting {
+    margin-top: 35vh;
+}
+
+/* module #connectFailed */
+.module#connectFailed {
+    margin-top: 35vh;
+}
+
+/* module #mainMenu */
+.module#mainMenu {
+    margin-top: 30vh;
+    margin-left: 8px;
+}
+
+/* module #botInfo */
+.module#botInfo {
+    margin-top: 15px;
+    margin-left: 30px;
+}
+
+.module .mdui-typo .mdui-divider {
+    margin-left: 1px;
+    margin-right: 10%;
+}
+
+.mdui-card {
+    margin-top: 20px;
+    margin-left: 10px;
+    display: inline-block;
+    width: 300px;
+    min-height: 156px;
+}
+
+@media screen and (max-width: 655px) {
+    .mdui-card {
+        margin-left: 0;
+    }
+}
+
+/* ChatUI */
+.sendArea {
+    z-index: 114;
+    background: #f4f6ff;
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    box-shadow: 0 0 5px 0 rgb(0 0 0 / 50%);
+    border-radius: 5px;
+}
+
+.sendArea .mdui-textfield {
+    width: calc(100% - 130px);
+    padding-top: 5px;
+    display: inline-block;
+    vertical-align: top;
+    margin-left: 1vw;
+}
+
+.sendArea button {
+    display: inline-block;
+    margin-left: 10px;
+    margin-top: 6px;
+}
+
+#msgContainer {
+    padding: 50px 20px 100px 20px;
+}
+
+#msgContainer .msg.myself-true {
+    text-align: right;
+}
+
+#msgContainer .msg .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 3px;
+    background: grey;
+    display: inline-block;
+    vertical-align: top;
+}
+
+#msgContainer .msg.myself-true .avatar {
+    float: right;
+}
+
+#msgContainer .msg div {
+    display: inline-block;
+    max-width: 400px;
+    width: calc(100% - 100px);
+    vertical-align: top;
+    margin: 0 5px;
+}
+
+#msgContainer .msg .name {
+    opacity: .7;
+    width: 100%;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#msgContainer .msg .msg {
+    background: #f1f1f1;
+    padding: 10px;
+    border-radius: 0 5px 5px 5px;
+    display: inline-block;
+    word-break: break-all;
+    margin-left: 0;
+    margin-bottom: 10px;
+    margin-top: 3px;
+}
+
+#msgContainer .msg.myself-true .msg {
+    background: #3f51b5;
+    border-radius: 5px 0 5px 5px;
+    color: white;
+}
+
+/* Others */
+.fadeIn {
+    animation: fadeIn 1s ease .5s both;
+}
+
+.fadeInSlow {
+    animation: fadeIn 1s ease 1.2s both;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
