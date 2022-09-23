@@ -4,24 +4,40 @@ let _groupMap = new Map(), _friendMap = new Map();
 let _groupMsgs = [], _friendMsgs = [];
 let _interacting, _inputMap = new Map();
 let _messageCount = 0;
-let __botInfoCache;
 let botName, botQQ;
-const _input = document.querySelector(".sendArea textarea");
-const _title = document.querySelector("span.mdui-typo-title");
+const _input = qs(".sendArea textarea");
+const _title = qs("span.mdui-typo-title");
+
+// Fast functions
+function id(id) {
+    return document.getElementById(id);
+}
+
+function qs(sel) {
+    return document.querySelector(sel);
+}
+
+function qsAll(sel) {
+    return document.querySelectorAll(sel);
+}
+
+function log(text) {
+    console.log(text);
+}
 
 // Functions
 function showModule(moduleSelector) {
     // close all modules
-    document.querySelectorAll(".module.shown").forEach((element) => {
+    qsAll(".module.shown").forEach((element) => {
         element.classList.remove("shown");
     });
 
-    document.querySelector(moduleSelector).classList.add("shown");
+    qs(moduleSelector).classList.add("shown");
     mdui.mutation();
 }
 
 function changeMenu(element) {
-    document.querySelectorAll(".mdui-list-item-active").forEach((ele) => {
+    qsAll(".mdui-list-item-active").forEach((ele) => {
         ele.classList.remove("mdui-list-item-active");
     });
 
@@ -34,20 +50,28 @@ function changeMenu(element) {
     _interacting = null;
     _title.innerText = "";
 
-    if (moduleName.startsWith("msg-")) {
-        let __value = _inputMap.get(moduleName);
-        _input.value = __value == undefined ? "" : __value;
-        _interacting = moduleName;
-        moduleName = "chatUI";
-        showMsgByModuleName(_interacting);
+    updateMessages(moduleName);
+}
+
+function updateMessages(moduleName) {
+    if (moduleName == undefined) return;
+
+    if (!moduleName.startsWith("msg-")) {
+        showModule("#" + moduleName);
+        return;
     }
 
-    showModule("#" + moduleName);
+    // update input
+    let __value = _inputMap.get(moduleName);
+    _input.value = __value == undefined ? "" : __value;
+    _interacting = moduleName;
+    showMsgByModuleName(_interacting);
+    showModule("#chatUI");
 }
 
 function showMsgByModuleName(name, doAnimatedScroll) {
     // clear container
-    document.getElementById("msgContainer").innerHTML = "";
+    id("msgContainer").innerHTML = "";
 
     // Group
     if (name.startsWith("msg-group-")) {
@@ -65,14 +89,17 @@ function showMsgByModuleName(name, doAnimatedScroll) {
 
         currentGroupMsg.forEach((data) => {
             let ele = document.createElement("div");
+            if (data.recalled) ele.classList.add("recalled");
             ele.classList.add("msg");
             ele.classList.add("myself-" + data.myself);
+            ele.setAttribute("data-time", data.time);
+
             ele.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${data.sender.qq}&spec=100">
             <div>
                 <span class="name">${data.sender.namecard}</span>
                 <span class="msg">${data.message}</span>
             </div>`;
-            document.getElementById("msgContainer").appendChild(ele);
+            id("msgContainer").appendChild(ele);
         });
     }
 
@@ -92,27 +119,25 @@ function showMsgByModuleName(name, doAnimatedScroll) {
 
         currentFriendMessage.forEach((data) => {
             let ele = document.createElement("div");
+            if (data.recalled) ele.classList.add("recalled");
             ele.classList.add("msg");
             ele.classList.add("myself-" + data.myself);
+            ele.setAttribute("data-time", data.time);
             ele.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${data.myself ? botQQ : data.friend}&spec=100">
             <div>
                 <span class="name">${_friendMap.get(data.myself ? botQQ : data.friend)}</span>
                 <span class="msg">${data.message}</span>
             </div>`;
-            document.getElementById("msgContainer").appendChild(ele);
+            id("msgContainer").appendChild(ele);
         });
     }
 
     if (doAnimatedScroll) {
-        document.getElementById("msgScroller").scrollIntoView({ behavior: "smooth" });
+        id("msgScroller").scrollIntoView({ behavior: "smooth" });
     } else {
-        document.getElementById("msgScroller").scrollIntoView();
-        setTimeout(() => { document.getElementById("msgScroller").scrollIntoView(); }, 100);
+        id("msgScroller").scrollIntoView();
+        setTimeout(() => { id("msgScroller").scrollIntoView(); }, 100);
     }
-}
-
-function log(text) {
-    console.log(text);
 }
 
 // 过滤消息
@@ -188,191 +213,234 @@ function connectToServer() {
     });
 
     _ws.addEventListener("message", (event) => {
-        try {
-            let messageData = JSON.parse(event.data);
-            switch (messageData.type) {
-                case "BotInfoResponse":
-                    if (__botInfoCache === messageData) return;
-                    __botInfoCache = JSON.stringify(messageData);
-                    log("Bot 信息已更新.");
+        let messageData = JSON.parse(event.data);
+        log(messageData);
+        switch (messageData.type) {
+            case "BotInfoResponse":
+                botInfoHandler(messageData);
+                break;
 
-                    botName = messageData.response.name;
-                    botQQ = messageData.response.qq;
+            case "SyncMessageResponse":
+                syncMessageHandler(messageData);
+                break;
 
-                    // update info
-                    document.getElementById("qqNick").innerText = botName;
-                    document.getElementById("qqNumber").innerText = botQQ;
-                    document.getElementById("groupCount").innerText = messageData.response.groupList.length;
-                    document.getElementById("friendCount").innerText = messageData.response.friendList.length;
+            case "SendMessageResponse":
+                mdui.snackbar(messageData.error ? "发送失败!" : "发送成功!", {
+                    timeout: 2000
+                });
+                break;
 
-                    _groupMap.clear();
-                    _friendMap.clear();
+            case "msg.group":
+                _messageCount++;
 
-                    document.getElementById("groupList").innerHTML = "";
-                    document.getElementById("friendList").innerHTML = "";
+                messageData.sender.namecard = escapeHTML(messageData.sender.namecard);
+                messageData.message = escapeHTML(messageData.message);
 
-                    messageData.response.groupList.forEach((group) => {
-                        _groupMap.set(group.id, escapeHTML(group.name));
+                _groupMsgs.push({
+                    myself: messageData.sender.qq == botQQ,
+                    group: messageData.group,
+                    sender: messageData.sender,
+                    time: messageData.time,
+                    message: messageData.message
+                });
 
-                        let ele = document.createElement("div");
-                        ele.className = "mdui-list-item mdui-ripple";
-                        ele.setAttribute("data-page", "msg-group-" + group.id);
-                        ele.innerHTML = '\
-                        <div class="mdui-list-item-avatar">\
-                            <img src="http://p.qlogo.cn/gh/' + group.id + "/" + group.id + '/100" />\
-                        </div>\
-                        <div class="mdui-list-item-content mdui-text-truncate">' + escapeHTML(group.name) + '</div>';
+                if (_interacting != "msg-group-" + messageData.group) return;
 
-                        document.getElementById("groupList").appendChild(ele);
-                    });
-
-                    messageData.response.friendList.forEach((friend) => {
-                        _friendMap.set(friend.qq, escapeHTML(friend.name));
-
-                        let ele = document.createElement("div");
-                        ele.className = "mdui-list-item mdui-ripple";
-                        ele.setAttribute("data-page", "msg-friend-" + friend.qq);
-                        ele.innerHTML = '\
-                        <div class="mdui-list-item-avatar">\
-                            <img src="http://q2.qlogo.cn/headimg_dl?dst_uin=' + friend.qq + '&spec=100">\
-                        </div>\
-                        <div class="mdui-list-item-content mdui-text-truncate">' + escapeHTML(friend.name) + '</div>';
-
-                        document.getElementById("friendList").appendChild(ele);
-                    });
-
-                    if (_interacting) changeMenu(document.querySelector("[data-page=" + _interacting + "]"));
-                    break;
-
-                case "SyncMessageResponse":
-                    _messageCount = 0;
-                    log("成功同步 " + messageData.response.length + " 个消息.");
-
-                    messageData.response.forEach((msg) => {
-                        _messageCount++;
-
-                        if (msg.type === "group") {
-                            msg.sender.namecard = escapeHTML(msg.sender.namecard);
-                            msg.message = escapeHTML(msg.message);
-
-                            _groupMsgs.push({
-                                myself: msg.sender.qq == botQQ,
-                                group: msg.group,
-                                sender: msg.sender,
-                                time: msg.time,
-                                message: msg.message
-                            });
-                            return;
-                        }
-
-                        if (msg.type === "friend") {
-                            msg.message = escapeHTML(msg.message);
-
-                            _friendMsgs.push({
-                                myself: msg.sender == botQQ,
-                                friend: (msg.sender == botQQ) ? msg.target : msg.sender,
-                                time: msg.time,
-                                message: msg.message
-                            });
-                            return;
-                        }
-                    });
-                    break;
-
-                case "SendMessageResponse":
-                    mdui.snackbar(messageData.error ? "发送失败!" : "发送成功!", {
-                        timeout: 2000
-                    });
-                    break;
-
-                case "msg.group":
-                    _messageCount++;
-
-                    messageData.sender.namecard = escapeHTML(messageData.sender.namecard);
-                    messageData.message = escapeHTML(messageData.message);
-
-                    _groupMsgs.push({
-                        myself: messageData.sender.qq == botQQ,
-                        group: messageData.group,
-                        sender: messageData.sender,
-                        time: messageData.time,
-                        message: messageData.message
-                    });
-
-                    if (_interacting != "msg-group-" + messageData.group) return;
-
-                    let ele = document.createElement("div");
-                    ele.classList.add("msg");
-                    ele.classList.add("myself-" + (messageData.sender.qq == botQQ));
-                    ele.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${messageData.sender.qq}&spec=100">
+                let ele = document.createElement("div");
+                ele.classList.add("msg");
+                ele.classList.add("myself-" + (messageData.sender.qq == botQQ));
+                ele.setAttribute("data-time", messageData.time);
+                ele.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${messageData.sender.qq}&spec=100">
                     <div>
                         <span class="name">${messageData.sender.namecard}</span>
                         <span class="msg">${messageData.message}</span>
                     </div>`;
 
-                    document.getElementById("msgContainer").appendChild(ele);
-                    document.getElementById("msgScroller").scrollIntoView({ behavior: "smooth" });
-                    break;
+                id("msgContainer").appendChild(ele);
+                id("msgScroller").scrollIntoView({ behavior: "smooth" });
+                break;
 
-                case "msg.friend":
-                    _messageCount++;
+            case "msg.friend":
+                _messageCount++;
 
-                    messageData.message = escapeHTML(messageData.message);
+                messageData.message = escapeHTML(messageData.message);
 
-                    _friendMsgs.push({
-                        myself: false,
-                        friend: messageData.sender,
-                        time: messageData.time,
-                        message: messageData.message
-                    });
+                _friendMsgs.push({
+                    myself: false,
+                    friend: messageData.sender,
+                    time: messageData.time,
+                    message: messageData.message
+                });
 
-                    if (_interacting != "msg-friend-" + messageData.sender) return;
+                if (_interacting != "msg-friend-" + messageData.sender) return;
 
-                    let friendEle = document.createElement("div");
-                    friendEle.classList.add("msg");
-                    friendEle.classList.add("myself-false");
-                    friendEle.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${messageData.sender}&spec=100">
+                let friendEle = document.createElement("div");
+                friendEle.classList.add("msg");
+                friendEle.classList.add("myself-false");
+                friendEle.setAttribute("data-time", messageData.time);
+                friendEle.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${messageData.sender}&spec=100">
                     <div>
                         <span class="name">${_friendMap.get(messageData.sender)}</span>
                         <span class="msg">${messageData.message}</span>
                     </div>`;
 
-                    document.getElementById("msgContainer").appendChild(friendEle);
-                    document.getElementById("msgScroller").scrollIntoView({ behavior: "smooth" });
-                    break;
+                id("msgContainer").appendChild(friendEle);
+                id("msgScroller").scrollIntoView({ behavior: "smooth" });
+                break;
 
-                case "msg.to.friend":
-                    _messageCount++;
+            case "msg.to.friend":
+                _messageCount++;
 
-                    messageData.message = escapeHTML(messageData.message);
+                messageData.message = escapeHTML(messageData.message);
 
-                    _friendMsgs.push({
-                        myself: true,
-                        friend: messageData.target,
-                        time: messageData.time,
-                        message: messageData.message
-                    });
+                _friendMsgs.push({
+                    myself: true,
+                    friend: messageData.target,
+                    time: messageData.time,
+                    message: messageData.message
+                });
 
-                    if (_interacting != "msg-friend-" + messageData.target) return;
+                if (_interacting != "msg-friend-" + messageData.target) return;
 
-                    let toFriendEle = document.createElement("div");
-                    toFriendEle.classList.add("msg");
-                    toFriendEle.classList.add("myself-true");
-                    toFriendEle.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${botQQ}&spec=100">
+                let toFriendEle = document.createElement("div");
+                toFriendEle.classList.add("msg");
+                toFriendEle.classList.add("myself-true");
+                toFriendEle.innerHTML = `<img class="avatar" src="//q2.qlogo.cn/headimg_dl?dst_uin=${botQQ}&spec=100">
                     <div>
                         <span class="name">${_friendMap.get(botQQ)}</span>
                         <span class="msg">${messageData.message}</span>
                     </div>`;
 
-                    document.getElementById("msgContainer").appendChild(toFriendEle);
-                    document.getElementById("msgScroller").scrollIntoView({ behavior: "smooth" });
-                    break;
-            }
-        } catch (e) {
-            console.warn("Failed to parse data:\n" + event.data);
-            console.warn("Exception:\n" + e);
+                id("msgContainer").appendChild(toFriendEle);
+                id("msgScroller").scrollIntoView({ behavior: "smooth" });
+                break;
+
+            case "messageRecall":
+                let _time = messageData.response.time;
+                let _type = messageData.response.type;
+
+                switch (_type) {
+                    case "group":
+                        for (let i = 0; i < _groupMsgs.length; i++) {
+                            if (_groupMsgs[i].time == _time) {
+                                let obj = _groupMsgs[i];
+                                obj.recalled = true;
+
+                                _groupMsgs[i] = obj;
+                                qs("[data-time=\"" + _time + "\"]").classList.add("recalled");
+                            }
+                        }
+                        break;
+                    case "friend":
+                        _friendMsgs.forEach((msg) => {
+                            for (let i = 0; i < _friendMsgs.length; i++) {
+                                if (_friendMsgs[i].time == _time) {
+                                    let obj = _friendMsgs[i];
+                                    obj.recalled = true;
+    
+                                    _friendMsgs[i] = obj;
+                                    qs("[data-time=\"" + _time + "\"]").classList.add("recalled");
+                                }
+                            }
+                        });
+                        break;
+                }
+                break;
         }
     });
+}
+
+function botInfoHandler(messageData) {
+    log("Bot 信息已更新.");
+
+    botName = messageData.response.name;
+    botQQ = messageData.response.qq;
+
+    // update info
+    id("qqNick").innerText = botName;
+    id("qqNumber").innerText = botQQ;
+    id("groupCount").innerText = messageData.response.groupList.length;
+    id("friendCount").innerText = messageData.response.friendList.length;
+
+    _groupMap.clear();
+    _friendMap.clear();
+
+    id("groupList").innerHTML = "";
+    id("friendList").innerHTML = "";
+
+    messageData.response.groupList.forEach((group) => {
+        _groupMap.set(group.id, escapeHTML(group.name));
+
+        let ele = document.createElement("div");
+        ele.className = "mdui-list-item mdui-ripple";
+        ele.setAttribute("data-page", "msg-group-" + group.id);
+        ele.innerHTML = '\
+                        <div class="mdui-list-item-avatar">\
+                            <img src="http://p.qlogo.cn/gh/' + group.id + "/" + group.id + '/100" />\
+                        </div>\
+                        <div class="mdui-list-item-content mdui-text-truncate">' + escapeHTML(group.name) + '</div>';
+
+        id("groupList").appendChild(ele);
+    });
+
+    messageData.response.friendList.forEach((friend) => {
+        _friendMap.set(friend.qq, escapeHTML(friend.name));
+
+        let ele = document.createElement("div");
+        ele.className = "mdui-list-item mdui-ripple";
+        ele.setAttribute("data-page", "msg-friend-" + friend.qq);
+        ele.innerHTML = '\
+                        <div class="mdui-list-item-avatar">\
+                            <img src="http://q2.qlogo.cn/headimg_dl?dst_uin=' + friend.qq + '&spec=100">\
+                        </div>\
+                        <div class="mdui-list-item-content mdui-text-truncate">' + escapeHTML(friend.name) + '</div>';
+
+        id("friendList").appendChild(ele);
+    });
+
+    if (_interacting) changeMenu(qs("[data-page=" + _interacting + "]"));
+}
+
+function syncMessageHandler(messageData) {
+    _messageCount = 0;
+    _groupMsgs = [];
+    _friendMsgs = [];
+
+    log("成功同步 " + messageData.response.length + " 个消息.");
+
+    messageData.response.forEach((msg) => {
+        _messageCount++;
+
+        if (msg.type === "group") {
+            msg.sender.namecard = escapeHTML(msg.sender.namecard);
+            msg.message = escapeHTML(msg.message);
+
+            _groupMsgs.push({
+                myself: msg.sender.qq == botQQ,
+                group: msg.group,
+                sender: msg.sender,
+                time: msg.time,
+                message: msg.message,
+                recalled: Boolean(msg.recalled)
+            });
+            return;
+        }
+
+        if (msg.type === "friend") {
+            msg.message = escapeHTML(msg.message);
+
+            _friendMsgs.push({
+                myself: msg.sender == botQQ,
+                friend: (msg.sender == botQQ) ? msg.target : msg.sender,
+                time: msg.time,
+                message: msg.message,
+                recalled: Boolean(msg.recalled)
+            });
+            return;
+        }
+    });
+
+    updateMessages();
 }
 
 function sendMessage() {
@@ -422,17 +490,18 @@ window.addEventListener("click", (event) => {
         return;
     }
 });
+
 window.addEventListener("keydown", (event) => {
     if (!_interacting || !_interacting.startsWith("msg-")) return;
     if (event.ctrlKey && event.key == "Enter") sendMessage();
 });
 
-document.querySelector("#chatUI button").onclick = sendMessage;
+qs("#chatUI button").onclick = sendMessage;
 
 setInterval(() => {
     // update info
-    document.getElementById("msgCount").innerText = _messageCount;
-    document.getElementById("groupMsgCount").innerText = _groupMsgs.length;
+    id("msgCount").innerText = _messageCount;
+    id("groupMsgCount").innerText = _groupMsgs.length;
 }, 10);
 
 // 每分钟同步一次机器人信息

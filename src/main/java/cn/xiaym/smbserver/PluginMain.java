@@ -4,6 +4,7 @@ import cn.xiaym.simplemiraibot.BotMain;
 import cn.xiaym.simplemiraibot.plugins.JavaPlugin;
 import cn.xiaym.simplemiraibot.utils.Logger;
 import cn.xiaym.smbserver.listeners.ChatListener;
+import cn.xiaym.smbserver.listeners.RecallListener;
 import cn.xiaym.smbserver.server.ServerMain;
 import org.java_websocket.WebSocket;
 import org.json.JSONArray;
@@ -20,7 +21,7 @@ import java.util.TimerTask;
 
 public class PluginMain extends JavaPlugin {
     private static ServerMain serverMain;
-    private static JSONArray cache;
+    private static final JSONArray cache = new JSONArray();
     private static final Timer timer = new Timer(true);
 
     public void onEnable() {
@@ -47,6 +48,7 @@ public class PluginMain extends JavaPlugin {
         }, 10 * 60 * 1000, 10 * 60 * 1000);
 
         BotMain.getBot().getEventChannel().registerListenerHost(new ChatListener());
+        BotMain.getBot().getEventChannel().registerListenerHost(new RecallListener());
     }
 
     public void onShutdown() {
@@ -61,6 +63,9 @@ public class PluginMain extends JavaPlugin {
     }
 
     private static void readCache() {
+        cache.clear();
+        JSONArray array;
+
         File pluginDir = new File("plugins", "smbserver");
         if (!pluginDir.exists() && !pluginDir.mkdirs()) Logger.err("[SMBServer] 数据文件夹创建失败!");
 
@@ -71,12 +76,55 @@ public class PluginMain extends JavaPlugin {
                 Files.write(cacheFile.toPath(), "[]".getBytes());
             }
 
-            cache = new JSONArray(Files.readString(cacheFile.toPath()));
+            array = new JSONArray(Files.readString(cacheFile.toPath()));
         } catch (IOException | JSONException e) {
-            cache = new JSONArray();
+            array = new JSONArray();
             Logger.err("[SMBServer] 缓存文件读取失败!");
             e.printStackTrace();
         }
+
+        for (Object obj : array)
+            if (obj instanceof JSONObject jsonObject) {
+                switch (jsonObject.getString("type")) {
+                    case "friend" -> {
+                        JSONObject friendObj = new JSONObject();
+                        if (!jsonObject.has("sender")
+                                || !jsonObject.has("time")
+                                || !jsonObject.has("message")
+                                || !jsonObject.has("target")) continue;
+                        boolean recalled = jsonObject.has("recalled") && jsonObject.getBoolean("recalled");
+
+                        friendObj.put("type", "friend");
+                        friendObj.put("sender", jsonObject.getLong("sender"));
+                        friendObj.put("time", jsonObject.getLong("time"));
+                        friendObj.put("message", jsonObject.getString("message"));
+                        friendObj.put("target", jsonObject.getLong("target"));
+                        friendObj.put("recalled", recalled);
+
+                        cache.put(friendObj);
+                    }
+
+                    case "group" -> {
+                        JSONObject groupObj = new JSONObject();
+                        if (!jsonObject.has("sender")
+                                || !jsonObject.has("time")
+                                || !jsonObject.has("message")
+                                || !jsonObject.has("group")) continue;
+                        boolean recalled = jsonObject.has("recalled") && jsonObject.getBoolean("recalled");
+
+                        groupObj.put("type", "group");
+                        groupObj.put("sender", jsonObject.getJSONObject("sender"));
+                        groupObj.put("time", jsonObject.getLong("time"));
+                        groupObj.put("message", jsonObject.getString("message"));
+                        groupObj.put("group", jsonObject.getLong("group"));
+                        groupObj.put("recalled", recalled);
+
+                        cache.put(groupObj);
+                    }
+                }
+            }
+
+        Logger.info("[SMBServer] 缓存格式化完毕!");
     }
 
     private static void saveCache() {
