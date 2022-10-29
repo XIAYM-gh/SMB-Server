@@ -4,7 +4,7 @@
     <root id="archive" name="SMB-Server.jar">
       <element id="module-output" name="SMB-Server" />
       <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/java-websocket/Java-WebSocket/1.5.3/Java-WebSocket-1.5.3.jar" path-in-jar="/" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/json/json/20220320/json-20220320.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/json/json/20220924/json-20220924.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

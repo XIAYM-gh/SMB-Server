@@ -21,10 +21,13 @@ import java.util.TimerTask;
 
 public class PluginMain extends JavaPlugin {
     private static ServerMain serverMain;
+    private static JavaPlugin pluginMain;
     private static final JSONArray cache = new JSONArray();
     private static final Timer timer = new Timer(true);
 
     public void onEnable() {
+        pluginMain = this;
+
         Logger.info("[SMBServer] 正在初始化 SMB 服务器!");
         serverMain = new ServerMain(BotMain.useDebug());
 
@@ -66,8 +69,7 @@ public class PluginMain extends JavaPlugin {
         cache.clear();
         JSONArray array;
 
-        File pluginDir = new File("plugins", "smbserver");
-        if (!pluginDir.exists() && !pluginDir.mkdirs()) Logger.err("[SMBServer] 数据文件夹创建失败!");
+        File pluginDir = pluginMain.getDataFolder();
 
         File cacheFile = new File(pluginDir, "chat_cache.json");
         try {
@@ -123,13 +125,10 @@ public class PluginMain extends JavaPlugin {
                     }
                 }
             }
-
-        Logger.info("[SMBServer] 缓存格式化完毕!");
     }
 
     private static void saveCache() {
         int maxCache = Math.min(cache.length(), 1000);
-        Logger.info("[SMBServer] 正在保存 " + maxCache + " 条消息，总共 " + cache.length() + " 条.");
 
         try {
             JSONArray output = new JSONArray();
@@ -139,7 +138,7 @@ public class PluginMain extends JavaPlugin {
             }
 
             Files.writeString(Paths.get("plugins/smbserver/chat_cache.json"), output.toString());
-            Logger.info("[SMBServer] 缓存写入完成!");
+            Logger.info("[SMBServer] 缓存写入完成, 已写入 " + output.length() + " 条消息!");
         } catch(Exception e) {
             Logger.err("[SMBServer] 缓存写入失败!");
             e.printStackTrace();
