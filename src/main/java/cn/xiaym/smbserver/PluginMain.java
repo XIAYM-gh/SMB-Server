@@ -14,7 +14,6 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -137,7 +136,7 @@ public class PluginMain extends JavaPlugin {
                 output.put(cache.get(i));
             }
 
-            Files.writeString(Paths.get("plugins/smbserver/chat_cache.json"), output.toString());
+            Files.writeString(new File(pluginMain.getDataFolder(), "chat_cache.json").toPath(), output.toString());
             Logger.info("[SMBServer] 缓存写入完成, 已写入 " + output.length() + " 条消息!");
         } catch(Exception e) {
             Logger.err("[SMBServer] 缓存写入失败!");
